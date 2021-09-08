@@ -28,8 +28,10 @@ import shutil
 import torch
 from torch import nn
 from torch.nn import CrossEntropyLoss
+from torch.nn import functional as F
+from torch.distributions.bernoulli import Bernoulli
 
-from tools.file_utils import cached_path
+from mnt.CLUE_master.baselines.models_pytorch.mrc_pytorch.tools.file_utils import cached_path
 
 logger = logging.getLogger(__name__)
 
@@ -397,16 +399,107 @@ class BertSelfOutput(nn.Module):
         self.ln_type = 'postln'
         if 'ln_type' in config.__dict__:
             self.ln_type = config.ln_type
+        self.I = i
+        self.Compress = BertMutidimsCompress(hidden_states)    
 
     def forward(self, hidden_states, input_tensor):
         hidden_states = self.dense(hidden_states)
         hidden_states = self.dropout(hidden_states)
+        if I == 3:
+            Compressed = Compress(hidden_states)
         if self.ln_type == 'preln':
-            hidden_states = hidden_states + input_tensor
+            hidden_states = hidden_states + input_tensor ## jumpconnection in BertAttention
         else:
             hidden_states = self.LayerNorm(hidden_states + input_tensor)
-        return hidden_states
+        return hidden_states, Compressed
 
+##
+class BertSelfOutput_scc(nn.Module):
+    def __init__(self, config):
+        super(BertSelfOutput, self).__init__()
+        self.dense = nn.Linear(config.hidden_size, config.hidden_size)
+        self.LayerNorm = BertLayerNorm(config.hidden_size, eps=1e-5)
+        self.dropout = nn.Dropout(config.hidden_dropout_prob)
+        self.ln_type = 'postln'
+        if 'ln_type' in config.__dict__:
+            self.ln_type = config.ln_type
+        self.I = i
+        self.bernoulli = torch.bernoulli(0.75)
+        self.Compress = BertMutidimsCompress(hidden_states)    
+
+    def forward(self, hidden_states, input_tensor, i, Compressed = None):
+        ##
+        if bernouli == 1:
+            i_0 = 0
+            Z = t.zeros(42,1)
+            while i_0<14 :
+                Compressed[:,:,41-i_0] = 0
+                i_0 += 0  
+        if I<3:
+            hidden_states = self.dense(hidden_states)
+            hidden_states = self.dropout(hidden_states)    
+        elif I == 3:
+            Compressed = Compress(hidden_states)
+        elif I>3:
+            A = t.zeros(hidden_states.size())
+            i_1 = 0
+            i_2 = 0
+            B = t.randn(42,42)
+            B.requires_grad_()
+            C = t.randn(42,768)
+            C.requires_grad_()
+
+            while i_1<16:
+                while i_2<32:
+                    while i_3<42:
+                        cos = t.cossimilarity(Compressed[i_1,i_2,:],B[i_1,i_2,:])
+                        if cos>0.75 :
+                            cos += t.mul(cos-0.75,10)                           
+                        A[i_1,i_2,:] += t.mul(cos,C[i])  
+                        i_3 += 1
+                    i_3 = 0
+                    i_2 += 1
+                i_2 = 0
+                i_1 += 1
+            hidden_states *= hidden_states*A 
+               
+        if self.ln_type == 'preln':
+            hidden_states = hidden_states + input_tensor ## jumpconnection in BertAttention
+        else:
+            hidden_states = self.LayerNorm(hidden_states + input_tensor)
+        return hidden_states, Compressed
+##        
+##
+class BertMutidimsCompress(nn.Module):
+    def __init__(self, config):
+        
+        self.Linear = t.Linear(hidden_states.size(),config.compressed_size)
+        
+    def Turnaround(self, Originparam):
+        i = 0
+        A_1 = t.zeros(Originparam.size())
+        while i<=32:
+            A_1[:,:,i] = A[:,:,4-i]
+            i += 1     
+    def forward(self, hidden_states):
+        ##consultant = t.mul(t.ones(config.hidden_size),0.05)
+        i_1 = 0
+        while i_1<0.04:            
+            consultant_1 = t.mul(t.ones(16,32,192),i_1 + 0.01)
+            consultant = t.cat((consultant,consultant_1),dim = 2)
+            i_1 += 0.01
+        C_1 = Linear(hidden_states)##the original compress transform
+        C_1_Weight = Linear.weight.t()
+        C_1_Bias = Linear.bias
+        C_1_Weight_1 = Turnaround(C_1_Weight)
+        C_2 = torch.add(hidden_states,consultant_1)
+        C_2 = torch.mm(C_3, C_1_Weight_1) + C_1_Bias
+        C_3 = torch.mm(hidden_states, C_1_Weight_1) + C_1_Bias##the transform with a consultant tensor working along with the original one to indicate how the original 
+        ##transform do to hidden_states
+        
+        Compressed = t.cat((C_1,C_2,C_3))
+
+##
 
 class BertAttention(nn.Module):
     def __init__(self, config):
@@ -416,6 +509,7 @@ class BertAttention(nn.Module):
         self.ln_type = 'postln'
         if 'ln_type' in config.__dict__:
             self.ln_type = config.ln_type
+        self.i = i    
 
     def forward(self, input_tensor, attention_mask):
         if self.ln_type == 'preln':
@@ -423,8 +517,29 @@ class BertAttention(nn.Module):
             self_output = self.self(hidden_state, attention_mask)
         else:
             self_output = self.self(input_tensor, attention_mask)
-        attention_output = self.output(self_output, input_tensor)
+        attention_output = self.output(self_output, input_tensor, i) ## jumpconnection  ## Here!
         return attention_output
+
+##
+class BertAttention_scc(nn.Module):
+    def __init__(self, config):
+        super(BertAttention, self).__init__()
+        self.self = BertSelfAttention(config)
+        self.output = BertSelfOutput_scc(config)
+        self.ln_type = 'postln'
+        if 'ln_type' in config.__dict__:
+            self.ln_type = config.ln_type
+        self.i = i    
+
+    def forward(self, input_tensor, attention_mask, i):
+        if self.ln_type == 'preln':
+            hidden_state = self.output.LayerNorm(input_tensor)  # pre_ln
+            self_output = self.self(hidden_state, attention_mask, i)
+        else:
+            self_output = self.self(input_tensor, attention_mask)
+        attention_output = self.output(self_output, input_tensor, i) ## jumpconnection  ## Here!
+        return attention_output
+##
 
 
 class BertIntermediate(nn.Module):
@@ -433,12 +548,54 @@ class BertIntermediate(nn.Module):
         self.dense = nn.Linear(config.hidden_size, config.intermediate_size)
         self.intermediate_act_fn = ACT2FN[config.hidden_act] \
             if isinstance(config.hidden_act, str) else config.hidden_act
+        self.i = i    
 
     def forward(self, hidden_states):
         hidden_states = self.dense(hidden_states)
         hidden_states = self.intermediate_act_fn(hidden_states)
         return hidden_states
+class BertIntermediate_scc(nn.Module):
+    def __init__(self, config):
+        super(BertIntermediate, self).__init__()
+        self.dense = nn.Linear(config.hidden_size, config.intermediate_size)
+        self.intermediate_act_fn = ACT2FN[config.hidden_act] \
+            if isinstance(config.hidden_act, str) else config.hidden_act
+        self.i = i    
 
+    def forward(self, hidden_states, i):
+        ##
+        if i<3:
+            hidden_states = self.dense(hidden_states)
+            hidden_states = self.intermediate_act_fn(hidden_states)
+        elif i == 3:
+            Compressed = Compress(hidden_states)
+        elif i>3:
+            A = t.zeros(hidden_states.size())
+            i_1 = 0
+            i_2 = 0
+            B = t.randn(42,42)
+            B.requires_grad_()
+            C = t.randn(42,768)
+            C.requires_grad_()
+
+            while i_1<16:
+                while i_2<32:
+
+                    while i_3<42:
+                        cos = t.cossimilarity(Compressed[i_1,i_2,:],B[i_1,i_2,:])
+                        if cos>0.75 :
+                            cos += t.mul(cos-0.75,10)                           
+                        A[i_1,i_2,:] += t.mul(cos,C[i])  
+                    
+                        i_3 += 1
+                    i_3 = 0
+                    i_2 += 1
+                i_2 = 0
+                i_1 += 1
+            hidden_states *= hidden_states*A 
+            hidden_states = self.intermediate_act_fn(hidden_states)
+        ##    
+        return hidden_states
 
 class BertOutput(nn.Module):
     def __init__(self, config):
@@ -453,6 +610,54 @@ class BertOutput(nn.Module):
     def forward(self, hidden_states, input_tensor):
         hidden_states = self.dense(hidden_states)
         hidden_states = self.dropout(hidden_states)
+        if self.ln_type == 'preln':
+            hidden_states = hidden_states + input_tensor
+        else:
+            hidden_states = self.LayerNorm(hidden_states + input_tensor)
+        return hidden_states
+
+##
+class BertOutput_scc(nn.Module):
+    def __init__(self, config):
+        super(BertOutput, self).__init__()
+        self.dense = nn.Linear(config.intermediate_size, config.hidden_size)
+        self.LayerNorm = BertLayerNorm(config.hidden_size, eps=1e-5)
+        self.dropout = nn.Dropout(config.hidden_dropout_prob)
+        self.ln_type = 'postln'
+        if 'ln_type' in config.__dict__:
+            self.ln_type = config.ln_type
+        self.i = i   
+
+    def forward(self, hidden_states, input_tensor, i):
+        ##
+        if i<3:
+            hidden_states = self.dense(hidden_states)
+            hidden_states = self.dropout(hidden_states)    
+        elif i == 3:
+            Compressed = Compress(hidden_states)
+        elif i>3:
+            A = t.zeros(hidden_states.size())
+            i_1 = 0
+            i_2 = 0
+            B = t.randn(42,42)
+            B.requires_grad_()
+            C = t.randn(42,768)
+            C.requires_grad_()
+
+            while i_1<16:
+                while i_2<32:
+                    while i_3<42:
+                        cos = t.cossimilarity(Compressed[i_1,i_2,:],B[i_1,i_2,:])
+                        if cos>0.75 :
+                            cos += t.mul(cos-0.75,10)                           
+                        A[i_1,i_2,:] += t.mul(cos,C[i])  
+                        i_3 += 1
+                    i_3 = 0
+                    i_2 += 1
+                i_2 = 0
+                i_1 += 1
+            hidden_states *= hidden_states*A 
+        ##
         if self.ln_type == 'preln':
             hidden_states = hidden_states + input_tensor
         else:
@@ -480,17 +685,161 @@ class BertLayer(nn.Module):
         layer_output = self.output(intermediate_output, attention_output)
         return layer_output
 
+##
+class BertLayer_scc_original_first(nn.Module):
+    def __init__(self, config):
+        super(BertLayer, self).__init__()
+        self.ln_type = 'postln'
+        if 'ln_type' in config.__dict__:
+            self.ln_type = config.ln_type
+        self.attention = BertAttention_scc(config)
+        self.intermediate = BertIntermediate_scc(config)
+        self.output = BertOutput_scc(config)
+        self.i = 0
+
+    def forward(self, hidden_states, attention_mask, i):
+        attention_output = self.attention(hidden_states, attention_mask, i)
+        if self.ln_type == 'preln':
+            attention_output_pre = self.output.LayerNorm(attention_output)
+        else:
+            attention_output_pre = attention_output
+        intermediate_output = self.intermediate(attention_output_pre, i)
+        layer_output = self.output(intermediate_output, attention_output, i)
+        i += 1 
+        return layer_output, i
+
+class BertLayer_scc_original_1(nn.Module):
+    def __init__(self, config):
+        super(BertLayer, self).__init__()
+        self.ln_type = 'postln'
+        if 'ln_type' in config.__dict__:
+            self.ln_type = config.ln_type
+        self.attention = BertAttention_scc(config)
+        self.intermediate = BertIntermediate_scc(config)
+        self.output = BertOutput_scc(config)
+        self.i = i
+
+    def forward(self, hidden_states, attention_mask, i):
+        attention_output = self.attention(hidden_states, attention_mask, i)
+        if self.ln_type == 'preln':
+            attention_output_pre = self.output.LayerNorm(attention_output)
+        else:
+            attention_output_pre = attention_output
+        intermediate_output = self.intermediate(attention_output_pre, i)
+        layer_output = self.output(intermediate_output, attention_output, i)
+        i += 1 
+        return layer_output, i
+class BertLayer_scc_original_2(nn.Module):
+    def __init__(self, config):
+        super(BertLayer, self).__init__()
+        self.ln_type = 'postln'
+        if 'ln_type' in config.__dict__:
+            self.ln_type = config.ln_type
+        self.attention = BertAttention(config)
+        self.intermediate = BertIntermediate(config)
+        self.output = BertOutput_scc(config)
+        self.k = torch.tensor([0.5], requires_grad=True)
+        self.i = i
+        
+    def get_k(self):
+        return k
+
+    def forward(self, hidden_states, attention_mask, i):
+        attention_output = self.attention(hidden_states, attention_mask)
+        if self.ln_type == 'preln':
+            attention_output_pre = self.output.LayerNorm(attention_output)
+        else:
+            attention_output_pre = attention_output
+        intermediate_output = self.intermediate(attention_output_pre)
+        layer_output = self.output(intermediate_output, attention_output, i)
+        layer_output = torch.mul(layer_output, K)
+        i += 1
+        return layer_output, i        
+class BertLayer_scc__normalizer(nn.Module):
+    def __init__(self, config):
+        super(BertLayer, self).__init__()
+        self.ln_type = 'postln'
+        if 'ln_type' in config.__dict__:
+            self.ln_type = config.ln_type
+        self.attention = BertAttention(config)
+        self.intermediate = BertIntermediate(config)
+        for p in self.parameters():
+            p.requires_grad=False
+        self.output = BertOutput(config)
+        self.i = i
+
+    def forward(self, hidden_states, attention_mask, i):
+        attention_output = self.attention(hidden_states, attention_mask)
+        if self.ln_type == 'preln':
+            attention_output_pre = self.output.LayerNorm(attention_output)
+        else:
+            attention_output_pre = attention_output
+        intermediate_output = self.intermediate(attention_output_pre)
+        layer_output = self.output(intermediate_output, attention_output)
+        i += 1
+        return layer_output, i        
+## 
+
 
 class BertEncoder(nn.Module):
-    def __init__(self, config):
+    def __init__(self, config, scc_n_layer=12):
         super(BertEncoder, self).__init__()
         layer = BertLayer(config)
         self.layer = nn.ModuleList([copy.deepcopy(layer) for _ in range(config.num_hidden_layers)])
-
+        self.scc_layer_original_1 = nn.ModuleList([BertLayer_scc_original_1(config) for _ in range(self.scc_n_layer)])
+        self.scc_layer_original_2 = nn.ModuleList([BertLayer_scc_original_2(config) for _ in range(self.scc_n_layer)])
+        self.scc_layer_normalizer = nn.ModuleList([BertLayer_scc_normalizer(config) for _ in range(self.scc_n_layer)])
+        self.compress_ratio = 1
+        self.Compress_Layer = BertMutidimsCompress(config)
+        self.bernoulli = None
+        ## 首先定义模型
+        self.model_o = scc_layer_original
+        self.model_n = scc_layer_normalizer
+        ## 设置normalizer更新频率（以更新概率的形式）
+        self.updatestabpart = Bernoulli(torch.tensor([1/1000]))
+        
+        
+    ##
+    def set_replacing_rate(self, replacing_rate):
+        if not 0 < replacing_rate <= 1:
+            raise Exception('Replace rate must be in the range (0, 1]!')
+        self.bernoulli = Bernoulli(torch.tensor([replacing_rate]))
+    ##
+    
     def forward(self, hidden_states, attention_mask, output_all_encoded_layers=True):
-        all_encoder_layers = []
-        for layer_module in self.layer:
-            hidden_states = layer_module(hidden_states, attention_mask)
+        ##
+        if self.training:
+            all_encoder_layers = []
+            H = 0
+            if updatestabpart.sample() == 1:     
+                i = 0
+                module_scc = []
+                while i<12:
+                    if BertLayer_scc_original_2[i].get_k > 0.75:  
+                        module_scc.append(self.scc_layer_original_2[i])
+                    else:
+                        module_scc.append(self.scc_layer_original_1[i])
+                    i += 1    
+                t.save(module_scc.state_dict(), "TransformerEncoderLayer_original.pt")
+                ## 重新载入模型参数
+                ## 通过 load_state_dict 函数加载参数，torch.load() 函数中重要的一步是反序列化。
+                model_n.load_state_dict(torch.load("TransformerEncoderLayer_original.pt"))            
+                model_o_1.load_state_dict(torch.load("TransformerEncoderLayer_original.pt"))       
+                model_o_2.load_state_dict(torch.load("TransformerEncoderLayer_original.pt"))       
+                ##通过 load_state_dict 函数加载参数，torch.load() 函数中重要的一步是反序列化。
+                
+            for i in range(self.scc_n_layer):
+                if self.bernoulli.sample() == 1:  # REPLACE
+                    if self.updatestabpart.sample() == 1:
+                        all_encoder_layers.append(self.scc_layer[i]) 
+                    
+                else:  # KEEP the original
+                    all_encoder_layers.append(self.layer[i])
+        else:  # inference with compressed model
+            all_encoder_layers = self.scc_layer_orinal
+        ##
+        for layer_module in self.all_encoder_layers:
+            hidden_states = layer_module(hidden_states, attention_mask)##Here!
             if output_all_encoded_layers:
                 all_encoder_layers.append(hidden_states)
         if not output_all_encoded_layers:
