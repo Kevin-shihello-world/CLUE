@@ -1,6 +1,7 @@
+
 # CLUE benchmark 
 datasets, baselines, pre-trained models, corpus and leaderboard
-
+以下是原先fork 的帮助界面，我在其部分代码的基础上做了starttransformer，之后会把原先的帮助页面改过来
 中文语言理解测评基准，包括代表性的数据集、基准(预训练)模型、语料库、排行榜。  
 
 我们会选择一系列有一定代表性的任务对应的数据集，做为我们测试基准的数据集。这些数据集会覆盖不同的任务、数据量、任务难度。
