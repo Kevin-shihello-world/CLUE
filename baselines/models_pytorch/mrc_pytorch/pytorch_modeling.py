@@ -31,7 +31,7 @@ from torch.nn import CrossEntropyLoss
 from torch.nn import functional as F
 from torch.distributions.bernoulli import Bernoulli
 
-from ..tools.file_utils import cached_path
+from tools.file_utils import cached_path
 
 logger = logging.getLogger(__name__)
 
