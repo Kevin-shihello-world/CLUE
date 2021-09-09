@@ -89,6 +89,7 @@ def main():
     print("device: {}, 16-bits training: {}".format(device, args.fp16))
 
     tokenizer = BertTokenizer.from_pretrained('bert-base-chinese')
+
     test_example_file = os.path.join(args.input_dir, 'test_examples_{}.pkl'.format(str(args.max_seq_length)))
     test_feature_file = os.path.join(args.input_dir, 'test_features_{}.pkl'.format(str(args.max_seq_length)))
 
