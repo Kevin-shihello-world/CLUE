@@ -141,7 +141,7 @@ def main():
     if os.path.exists(args.output_dir) == False:
         os.makedirs(args.output_dir, exist_ok=True)
 
-    tokenizer = BertTokenizer(vocab_file=args.vocab_file, do_lower_case=args.do_lower_case)
+    tokenizer = BertTokenizer.from_pretrained('bert-base-chinese')
 
     print('ready for train dataset')
 
